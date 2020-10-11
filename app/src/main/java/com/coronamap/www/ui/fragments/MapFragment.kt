@@ -1,17 +1,27 @@
 package com.coronamap.www.ui.fragments
 
 import android.Manifest
+import android.content.IntentSender
 import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Bundle
+import android.os.Looper
+import android.util.Log
 import android.view.View
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import com.coronamap.www.R
 import com.coronamap.www.databinding.FragmentMapBinding
+import com.coronamap.www.model.LocationItem
 import com.coronamap.www.ui.showToast
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.*
 import com.google.android.libraries.maps.GoogleMap
 import com.google.android.libraries.maps.OnMapReadyCallback
+import com.google.android.libraries.maps.model.LatLng
 
 class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
 
@@ -26,19 +36,64 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
         const val REQUEST_CHECK_SETTINGS = 1011
         const val AUTOCOMPLETE_REQUEST_CODE = 1
     }
-
+    private val mapViewModel: MapViewModel by viewModels()
     private var _binding: FragmentMapBinding? = null
     private val binding get() = _binding!!
 
     private var mHasPermission: Boolean = false
     private var mPermissionRequestCount: Int = 0
+    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    private lateinit var mLocationRequest: LocationRequest
+    private var requestingLocationUpdates = false
+
+    private var locationCallback: LocationCallback? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentMapBinding.bind(view)
         requestPermissionsIfNecessary()
 
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult?) {
+                locationResult ?: return
+                for (location in locationResult.locations) {
+                    // Update UI with location data
+
+                    mapViewModel.setCurrentLocation(
+                        LocationItem(
+                            id = "CURRENT_LOCATION",
+                            name = "Current Location",
+                            latLng = LatLng(location.latitude, location.longitude),
+                            address = ""
+                        )
+                    )
+                    //just do once so break
+                    //stopLocationUpdates()
+                    break
+                }
+            }
+        }
+        fusedLocationProviderClient =
+            LocationServices.getFusedLocationProviderClient(requireContext())
+        updateValuesFromBundle(savedInstanceState)
+
+        binding.map.let {
+            it.onCreate(savedInstanceState)
+            it.getMapAsync(this)
+        }
         //setGoogleMap()
+    }
+    private fun updateValuesFromBundle(savedInstanceState: Bundle?) {
+        savedInstanceState ?: return
+        // Update the value of requestingLocationUpdates from the Bundle.
+        if (savedInstanceState.keySet().contains(REQUESTING_LOCATION_UPDATES_KEY)) {
+            requestingLocationUpdates = savedInstanceState.getBoolean(
+                REQUESTING_LOCATION_UPDATES_KEY
+            )
+        }
+        // ...
+        // Update UI to match restored state
+        //updateUI()
     }
     private fun requestPermissionsIfNecessary() {
         mHasPermission = checkPermission()
@@ -83,12 +138,108 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
         }
     }
 
-    
+    private fun getLastLocation() {
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requireContext().showToast(
+                getString(R.string.set_permissions_in_settings)
+            )
+            return
+        }
+//        if (::fusedLocationProviderClient.isInitialized) {
+//            fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: Location? ->
+//                location?.let {
+//                    mapViewModel.setCurrentLocation(
+//                        LocationItem(
+//                            id = "CURRENT_LOCATION",
+//                            name = "Current Location",
+//                            latLng = LatLng(location.latitude, location.longitude),
+//                            address = ""
+//                        )
+//                    )
+//                } ?: setLocationSettings()
+//            }
+//        } ?: setLocationSettings
+    }
+    private fun setLocationSettings() {
+        // Create the location request to start receiving updates
+        // https://developer.android.com/training/location/change-location-settings
+        mLocationRequest = LocationRequest.create().apply {
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+            interval = UPDATE_INTERVAL
+            fastestInterval = FASTEST_INTERVAL
+        }
 
+        // Create LocationSettingsRequest object using location request
+        val builder = LocationSettingsRequest.Builder().addLocationRequest(mLocationRequest)
+        val locationSettingsRequest = builder.build()
+
+        // Check whether location settings are satisfied
+        // https://developers.google.com/android/reference/com/google/android/gms/location/SettingsClient
+        val settingsClient = LocationServices.getSettingsClient(requireContext())
+        val task = settingsClient.checkLocationSettings(locationSettingsRequest)
+        task.addOnSuccessListener { locationSettingsResponse ->
+            // All location settings are satisfied. The client can initialize
+            // location requests here.
+            requestingLocationUpdates = true
+            startLocationUpdates()
+        }
+        task.addOnFailureListener { exception ->
+            if (exception is ResolvableApiException) {
+                // Location settings are not satisfied, but this can be fixed
+                // by showing the user a dialog.
+                try {
+                    // Show the dialog by calling startResolutionForResult(),
+                    // and check the result in onActivityResult().
+                    exception.startResolutionForResult(
+                        requireActivity(),
+                        REQUEST_CHECK_SETTINGS
+                    )
+                } catch (sendEx: IntentSender.SendIntentException) {
+                    // Ignore the error.
+                    Log.e("Error", "SendIntentException:  $sendEx")
+
+                }
+            } else {
+                requireContext().showToast("$exception")
+            }
+        }
+    }
+    private fun startLocationUpdates() {
+        if (checkPermission()) {
+            fusedLocationProviderClient.requestLocationUpdates(
+                mLocationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+            )
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopLocationUpdates()
+
+    }
     private fun setGoogleMap(){
         binding.apply {
             map.getMapAsync(this@MapFragment)
         }
+    }
+
+    private fun stopLocationUpdates() {
+        requestingLocationUpdates = false
+        fusedLocationProviderClient.removeLocationUpdates(locationCallback)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(REQUESTING_LOCATION_UPDATES_KEY, requestingLocationUpdates)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onDestroyView() {
@@ -97,5 +248,9 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
     }
 
     override fun onMapReady(p0: GoogleMap?) {
+        p0?.let {
+            mapViewModel.setMapReady(true)
+            mapViewModel.setGoogleMap(it)
+        }
     }
 }
