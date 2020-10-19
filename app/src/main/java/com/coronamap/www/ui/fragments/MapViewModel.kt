@@ -1,6 +1,5 @@
 package com.coronamap.www.ui.fragments
 
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
@@ -24,8 +23,13 @@ class MapViewModel : ViewModel() {
     val mapReadyAndLocationMediatorLiveData: LiveData<GoogleMapSettings>
         get() = _mapReadyAndLocationMediatorLiveData
 
+    private val _mapZoomLevel = MutableLiveData<Float>()
+    private val _searchMyLocation = MutableLiveData<Boolean>()
+
 
     init {
+        _mapZoomLevel.value = 13f //default zoom level
+        _searchMyLocation.value = false
         _locationItem.value = null
         _isMapReady.value = false
         _mapReadyAndLocationMediatorLiveData.addSource(_isMapReady) {
@@ -43,7 +47,19 @@ class MapViewModel : ViewModel() {
     }
 
     fun setCurrentLocation(it: LocationItem) {
-        _locationItem.value = it
+        _searchMyLocation.value?.let { isPressed ->
+            if (isPressed) {
+                _locationItem.value = it
+                _searchMyLocation.value = false
+            } else {
+                if (_locationItem.value != it)
+                    _locationItem.value = it
+            }
+        }
+    }
+
+    fun setSearchMyLocationClicked(value: Boolean) {
+        _searchMyLocation.value = true
     }
 
     fun getLocationItem() = locationItem.value
@@ -60,9 +76,15 @@ class MapViewModel : ViewModel() {
         _googleMap.value = map
     }
 
+    fun setZoomLevel(zoomLevel: Float) {
+        _mapZoomLevel.value = zoomLevel
+    }
 
-    fun clearGoogleMap(){
-        _isMapReady.value =false
+    fun getZoomLevel() = _mapZoomLevel.value
+
+
+    fun clearGoogleMap() {
+        _isMapReady.value = false
         _googleMap.value?.clear()
     }
 

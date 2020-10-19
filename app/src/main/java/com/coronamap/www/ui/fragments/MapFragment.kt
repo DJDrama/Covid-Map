@@ -1,6 +1,7 @@
 package com.coronamap.www.ui.fragments
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.location.Location
@@ -19,14 +20,17 @@ import com.coronamap.www.model.LocationItem
 import com.coronamap.www.ui.showToast
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
+import com.google.android.libraries.maps.CameraUpdateFactory
 import com.google.android.libraries.maps.GoogleMap
 import com.google.android.libraries.maps.OnMapReadyCallback
 import com.google.android.libraries.maps.model.LatLng
+import com.google.android.libraries.maps.model.Marker
+import com.google.android.libraries.maps.model.MarkerOptions
 
-class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
+class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
+    GoogleMap.OnInfoWindowClickListener {
 
     companion object {
-        const val ZOOM_LEVEL = 13f
         const val REQUESTING_LOCATION_UPDATES_KEY = "REQUESTING_LOCATION_UPDATES_KEY"
         const val REQUEST_CODE_PERMISSION = 101
         const val locationPermission = Manifest.permission.ACCESS_FINE_LOCATION
@@ -36,6 +40,7 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
         const val REQUEST_CHECK_SETTINGS = 1011
         const val AUTOCOMPLETE_REQUEST_CODE = 1
     }
+
     private val mapViewModel: MapViewModel by viewModels()
     private var _binding: FragmentMapBinding? = null
     private val binding get() = _binding!!
@@ -62,7 +67,7 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
                     mapViewModel.setCurrentLocation(
                         LocationItem(
                             id = "CURRENT_LOCATION",
-                            name = "Current Location",
+                            name = "현재 위치",
                             latLng = LatLng(location.latitude, location.longitude),
                             address = ""
                         )
@@ -82,7 +87,62 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
             it.getMapAsync(this)
         }
         //setGoogleMap()
+        subscribeObservers()
     }
+
+    @SuppressLint("MissingPermission")
+    private fun subscribeObservers() {
+        mapViewModel.mapReadyAndLocationMediatorLiveData.observe(viewLifecycleOwner) {
+            it?.run {
+                if (isMapReady) {
+                    this.googleMap?.let { gMap ->
+                        this.location?.let { locationItem ->
+                            Log.e("check", "check : L" + locationItem);
+                            with(gMap) {
+                                moveCamera(
+                                    CameraUpdateFactory.newLatLngZoom(
+                                        locationItem.latLng,
+                                        mapViewModel.getZoomLevel() ?: 13f
+                                    )
+                                )
+                                clear()
+                                val markerOptions =
+                                    MarkerOptions().position(locationItem.latLng!!)
+                                        .title(locationItem.name)
+                                val marker = addMarker(markerOptions)
+                                marker.tag = locationItem
+                                marker.showInfoWindow()
+
+                                setOnInfoWindowClickListener(this@MapFragment)
+
+                                isMyLocationEnabled = true
+                                uiSettings.isZoomControlsEnabled = true
+                                setOnCameraMoveListener {
+                                   //control zoom level
+                                    mapViewModel.setZoomLevel(cameraPosition.zoom)
+                                }
+
+                                setOnMyLocationButtonClickListener {
+                                    startLocationUpdates()
+                                    mapViewModel.setSearchMyLocationClicked(true)
+                                    //getLastLocation()
+                                    false
+                                }
+
+                                //After Google map has been initialized, fetch my visited places
+                                //fetchMyPlaces(this)
+                            }
+                        } ?: if (requestingLocationUpdates) {
+                            startLocationUpdates()
+                        } else {
+                            setLocationSettings()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private fun updateValuesFromBundle(savedInstanceState: Bundle?) {
         savedInstanceState ?: return
         // Update the value of requestingLocationUpdates from the Bundle.
@@ -95,6 +155,7 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
         // Update UI to match restored state
         //updateUI()
     }
+
     private fun requestPermissionsIfNecessary() {
         mHasPermission = checkPermission()
         if (!mHasPermission) {
@@ -152,21 +213,22 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
             )
             return
         }
-//        if (::fusedLocationProviderClient.isInitialized) {
-//            fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: Location? ->
-//                location?.let {
-//                    mapViewModel.setCurrentLocation(
-//                        LocationItem(
-//                            id = "CURRENT_LOCATION",
-//                            name = "Current Location",
-//                            latLng = LatLng(location.latitude, location.longitude),
-//                            address = ""
-//                        )
-//                    )
-//                } ?: setLocationSettings()
-//            }
-//        } ?: setLocationSettings
+        if (::fusedLocationProviderClient.isInitialized) {
+            fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: Location? ->
+                location?.let {
+                    mapViewModel.setCurrentLocation(
+                        LocationItem(
+                            id = "CURRENT_LOCATION",
+                            name = "현재 위치",
+                            latLng = LatLng(location.latitude, location.longitude),
+                            address = ""
+                        )
+                    )
+                } ?: setLocationSettings()
+            }
+        }
     }
+
     private fun setLocationSettings() {
         // Create the location request to start receiving updates
         // https://developer.android.com/training/location/change-location-settings
@@ -211,6 +273,7 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
             }
         }
     }
+
     private fun startLocationUpdates() {
         if (checkPermission()) {
             fusedLocationProviderClient.requestLocationUpdates(
@@ -221,12 +284,18 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if(::mLocationRequest.isInitialized)
+            startLocationUpdates()
+    }
+
     override fun onPause() {
         super.onPause()
         stopLocationUpdates()
-
     }
-    private fun setGoogleMap(){
+
+    private fun setGoogleMap() {
         binding.apply {
             map.getMapAsync(this@MapFragment)
         }
@@ -244,7 +313,12 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding=null
+        binding.map.onDestroy()
+        mapViewModel.clearGoogleMap()
+        if (locationCallback != null) {
+            locationCallback = null
+        }
+        _binding = null
     }
 
     override fun onMapReady(p0: GoogleMap?) {
@@ -252,5 +326,9 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback {
             mapViewModel.setMapReady(true)
             mapViewModel.setGoogleMap(it)
         }
+    }
+
+    override fun onInfoWindowClick(p0: Marker?) {
+
     }
 }

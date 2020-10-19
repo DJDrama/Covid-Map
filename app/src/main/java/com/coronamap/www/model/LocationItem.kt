@@ -10,4 +10,19 @@ data class LocationItem(
     val name: String,
     val latLng: LatLng?,
     val address: String
-): Parcelable
+): Parcelable {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as LocationItem
+
+        if (latLng != other.latLng) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return latLng?.hashCode() ?: 0
+    }
+}

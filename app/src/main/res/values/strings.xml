@@ -2,4 +2,5 @@
     <string name="app_name">Corona Map</string>
     <string name="title_activity_maps">Map</string>
     <string name="set_permissions_in_settings">Go to Settings -> Apps and Notifications -> Place -> App Permissions and grant access to Location.</string>
+    <string name="label_fragment_map">코로나 맵</string>
 </resources>

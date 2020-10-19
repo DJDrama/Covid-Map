@@ -8,7 +8,7 @@
     <fragment
         android:id="@+id/mapFragment"
         android:name="com.coronamap.www.ui.fragments.MapFragment"
-        android:label="MapFragment"
+        android:label="@string/label_fragment_map"
         tools:layout="@layout/fragment_map">
         <action
             android:id="@+id/action_mapFragment_to_dashBoardFragment"
