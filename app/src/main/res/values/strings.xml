@@ -3,4 +3,6 @@
     <string name="title_activity_maps">Map</string>
     <string name="set_permissions_in_settings">Go to Settings -> Apps and Notifications -> Place -> App Permissions and grant access to Location.</string>
     <string name="label_fragment_map">코로나 맵</string>
+    <string name="detail">자세히</string>
+    <string name="dashboard">대시보드</string>
 </resources>

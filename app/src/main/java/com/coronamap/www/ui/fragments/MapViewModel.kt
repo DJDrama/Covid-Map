@@ -44,6 +44,8 @@ class MapViewModel : ViewModel() {
             _mapReadyAndLocationMediatorLiveData.value =
                 GoogleMapSettings(_isMapReady.value!!, _locationItem.value, it)
         }
+
+
     }
 
     fun setCurrentLocation(it: LocationItem) {
@@ -59,7 +61,7 @@ class MapViewModel : ViewModel() {
     }
 
     fun setSearchMyLocationClicked(value: Boolean) {
-        _searchMyLocation.value = true
+        _searchMyLocation.value = value
     }
 
     fun getLocationItem() = locationItem.value

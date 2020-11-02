@@ -8,14 +8,19 @@ import android.location.Location
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import com.coronamap.www.R
 import com.coronamap.www.databinding.FragmentMapBinding
+import com.coronamap.www.model.DangerousPlaces
 import com.coronamap.www.model.LocationItem
 import com.coronamap.www.ui.showToast
 import com.google.android.gms.common.api.ResolvableApiException
@@ -23,9 +28,12 @@ import com.google.android.gms.location.*
 import com.google.android.libraries.maps.CameraUpdateFactory
 import com.google.android.libraries.maps.GoogleMap
 import com.google.android.libraries.maps.OnMapReadyCallback
+import com.google.android.libraries.maps.model.BitmapDescriptorFactory
+import com.google.android.libraries.maps.model.BitmapDescriptorFactory.HUE_GREEN
 import com.google.android.libraries.maps.model.LatLng
 import com.google.android.libraries.maps.model.Marker
 import com.google.android.libraries.maps.model.MarkerOptions
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
     GoogleMap.OnInfoWindowClickListener {
@@ -53,10 +61,14 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
 
     private var locationCallback: LocationCallback? = null
 
+    private lateinit var firebaseFirestore: FirebaseFirestore
+
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentMapBinding.bind(view)
         requestPermissionsIfNecessary()
+        setHasOptionsMenu(true)
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult?) {
@@ -87,6 +99,10 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
             it.getMapAsync(this)
         }
         //setGoogleMap()
+
+        firebaseFirestore = FirebaseFirestore.getInstance()
+
+
         subscribeObservers()
     }
 
@@ -97,7 +113,6 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
                 if (isMapReady) {
                     this.googleMap?.let { gMap ->
                         this.location?.let { locationItem ->
-                            Log.e("check", "check : L" + locationItem);
                             with(gMap) {
                                 moveCamera(
                                     CameraUpdateFactory.newLatLngZoom(
@@ -108,6 +123,7 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
                                 clear()
                                 val markerOptions =
                                     MarkerOptions().position(locationItem.latLng!!)
+                                        .icon(BitmapDescriptorFactory.defaultMarker(HUE_GREEN))
                                         .title(locationItem.name)
                                 val marker = addMarker(markerOptions)
                                 marker.tag = locationItem
@@ -118,7 +134,7 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
                                 isMyLocationEnabled = true
                                 uiSettings.isZoomControlsEnabled = true
                                 setOnCameraMoveListener {
-                                   //control zoom level
+                                    //control zoom level
                                     mapViewModel.setZoomLevel(cameraPosition.zoom)
                                 }
 
@@ -130,7 +146,7 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
                                 }
 
                                 //After Google map has been initialized, fetch my visited places
-                                //fetchMyPlaces(this)
+                                fetchDangerousPlaces(this)
                             }
                         } ?: if (requestingLocationUpdates) {
                             startLocationUpdates()
@@ -141,6 +157,53 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
                 }
             }
         }
+        mapViewModel.infoWindowClicked.observe(viewLifecycleOwner) {
+            it?.let { boolValue ->
+                if (boolValue) {
+                    mapViewModel.getLocationItem()?.let { locationItem ->
+                        val action = MapFragmentDirections.actionMapFragmentToMapDetailFragment(
+                            locationItem
+                        )
+                        findNavController().navigate(action)
+                        mapViewModel.setInfoWindowClicked(false)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun fetchDangerousPlaces(googleMap: GoogleMap) {
+        firebaseFirestore.collection("dangerous_places").get()
+            .addOnSuccessListener {
+                val list = mutableListOf<DangerousPlaces>()
+                for (document in it.documents) {
+                    val dangerousPlaces = document.toObject(DangerousPlaces::class.java)
+                    dangerousPlaces?.let { dp ->
+                        dp.documentId = document.id
+                        list.add(dp)
+                    }
+                }
+                if (list.isNotEmpty()) {
+                    list.forEach { dp ->
+                        val mo = MarkerOptions().position(
+                            LatLng(
+                                dp.latitude.toDouble(),
+                                dp.longitude.toDouble()
+                            )
+                        )
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                            .title(dp.name)
+                        googleMap.apply {
+                            val marker = addMarker(mo)
+                            marker.tag = dp
+                            //marker.showInfoWindow()
+                        }
+                    }
+                }
+            }
+            .addOnFailureListener {
+                Log.e("fetchPlaces", "Error: $it")
+            }
     }
 
     private fun updateValuesFromBundle(savedInstanceState: Bundle?) {
@@ -286,7 +349,7 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
 
     override fun onResume() {
         super.onResume()
-        if(::mLocationRequest.isInitialized)
+        if (::mLocationRequest.isInitialized)
             startLocationUpdates()
     }
 
@@ -329,6 +392,44 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
     }
 
     override fun onInfoWindowClick(p0: Marker?) {
+        p0?.let {
+            if (it.title == "현재 위치") return //현재 위치면 클릭 작동안하도록
 
+            var item = it.tag
+            if (item is DangerousPlaces) {
+                item = item
+                mapViewModel.setCurrentLocation(
+                    LocationItem(
+                        item.documentId,
+                        item.name,
+                        latLng = LatLng(item.latitude.toDouble(), item.longitude.toDouble()),
+                        item.address
+                    )
+                )
+            } else {
+                item = item as LocationItem
+                mapViewModel.setCurrentLocation(item)
+            }
+            mapViewModel.setInfoWindowClicked(true)
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+        inflater.inflate(R.menu.menu_dashboard, menu)
+
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_dashboard -> {
+                navigateToDashBoard()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+    private fun navigateToDashBoard(){
+        findNavController().navigate(R.id.action_mapFragment_to_dashBoardFragment)
     }
 }

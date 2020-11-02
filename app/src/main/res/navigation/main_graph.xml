@@ -13,10 +13,22 @@
         <action
             android:id="@+id/action_mapFragment_to_dashBoardFragment"
             app:destination="@id/dashBoardFragment" />
+        <action
+            android:id="@+id/action_mapFragment_to_mapDetailFragment"
+            app:destination="@id/mapDetailFragment" />
     </fragment>
     <fragment
         android:id="@+id/dashBoardFragment"
         android:name="com.coronamap.www.ui.fragments.DashBoardFragment"
-        android:label="DashBoardFragment"
+        android:label="@string/dashboard"
         tools:layout="@layout/fragment_dash_board" />
+    <fragment
+        android:id="@+id/mapDetailFragment"
+        android:name="com.coronamap.www.ui.fragments.MapDetailFragment"
+        android:label="@string/detail"
+        tools:layout="@layout/fragment_map_detail">
+        <argument
+            android:name="locationItem"
+            app:argType="com.coronamap.www.model.LocationItem" />
+    </fragment>
 </navigation>
