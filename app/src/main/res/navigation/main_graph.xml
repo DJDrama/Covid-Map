@@ -11,9 +11,6 @@
         android:label="@string/label_fragment_map"
         tools:layout="@layout/fragment_map">
         <action
-            android:id="@+id/action_mapFragment_to_dashBoardFragment"
-            app:destination="@id/dashBoardFragment" />
-        <action
             android:id="@+id/action_mapFragment_to_mapDetailFragment"
             app:destination="@id/mapDetailFragment" />
     </fragment>

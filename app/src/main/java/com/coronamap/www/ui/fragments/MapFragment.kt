@@ -18,6 +18,7 @@ import androidx.core.content.PermissionChecker
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.ui.onNavDestinationSelected
 import com.coronamap.www.R
 import com.coronamap.www.databinding.FragmentMapBinding
 import com.coronamap.www.model.DangerousPlaces
@@ -421,15 +422,6 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_dashboard -> {
-                navigateToDashBoard()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-    private fun navigateToDashBoard(){
-        findNavController().navigate(R.id.action_mapFragment_to_dashBoardFragment)
+        return item.onNavDestinationSelected(findNavController()) || super.onOptionsItemSelected(item)
     }
 }

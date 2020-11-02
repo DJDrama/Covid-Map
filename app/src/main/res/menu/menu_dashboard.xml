@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/action_dashboard"
+        android:id="@+id/dashBoardFragment"
         app:showAsAction="ifRoom"
         android:title="@string/dashboard"
         android:icon="@drawable/ic_baseline_dashboard_24"
