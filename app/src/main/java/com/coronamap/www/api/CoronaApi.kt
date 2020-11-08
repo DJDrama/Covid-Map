@@ -1,6 +1,7 @@
 package com.coronamap.www.api
 
 import com.coronamap.www.model.LocalCounter
+import com.coronamap.www.model.SiDoByul
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.HttpUrl
@@ -17,12 +18,19 @@ interface CoronaApi {
     @GET("korea/")
     suspend fun getLocalCounter(
         @Query("serviceKey")
-        serviceKey: String = ""
+        serviceKey: String = SERVICE_KEY
     ): LocalCounter
+
+    @GET("korea/country/new/")
+    suspend fun getSiDoByul(
+        @Query("serviceKey")
+        serviceKey: String = SERVICE_KEY
+    ): SiDoByul
 
 
     companion object {
         private const val BASE_URL = "https://api.corona-19.kr/"
+        private const val SERVICE_KEY = ""
         fun create(): CoronaApi = create(BASE_URL.toHttpUrlOrNull()!!)
         fun create(httpUrl: HttpUrl): CoronaApi {
             val logger = HttpLoggingInterceptor()

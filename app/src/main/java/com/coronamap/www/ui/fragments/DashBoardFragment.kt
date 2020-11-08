@@ -28,6 +28,9 @@ class DashBoardFragment : Fragment(R.layout.fragment_dash_board) {
         viewModel.localCounterLiveData.observe(viewLifecycleOwner) {
             updateUI(it)
         }
+        viewModel.siDoByulLiveData.observe(viewLifecycleOwner){
+            binding.tvNewCase.text = it.korea.newCase.plus("명")
+        }
     }
 
     private fun updateUI(localCounter: LocalCounter) {
@@ -49,7 +52,10 @@ class DashBoardFragment : Fragment(R.layout.fragment_dash_board) {
 
             binding.tvNotCaseCount.text = notCaseCount.plus("명")
             binding.tvNotCaseCountPercentage.text = "(".plus(notCasePercentage).plus("%)")
+
+            binding.tvUpdate.text = updateTime
         }
+
 
     }
 

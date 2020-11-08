@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coronamap.www.api.CoronaApi
 import com.coronamap.www.model.LocalCounter
+import com.coronamap.www.model.SiDoByul
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.launch
 
@@ -13,8 +14,14 @@ class DashBoardViewModel(private val coronaApi: CoronaApi) : ViewModel() {
     val localCounterLiveData
         get() = _localCounterMutableLiveData
 
+
+    private val _siDoByulMutableLiveData = MutableLiveData<SiDoByul>()
+    val siDoByulLiveData
+        get() = _siDoByulMutableLiveData
+
     init {
         fetchLocalCounter()
+        fetchSiDoByulData()
     }
 
     private fun fetchLocalCounter() {
@@ -23,6 +30,15 @@ class DashBoardViewModel(private val coronaApi: CoronaApi) : ViewModel() {
             if(localCounter.resultCode == "0") {
                 _localCounterMutableLiveData.postValue(localCounter)
             }
+        }
+    }
+    private fun fetchSiDoByulData(){
+        viewModelScope.launch(IO) {
+            val siDoByul = coronaApi.getSiDoByul()
+            if(siDoByul.resultCode == "0"){
+                _siDoByulMutableLiveData.postValue(siDoByul)
+            }
+
         }
     }
 
