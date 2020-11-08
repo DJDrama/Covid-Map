@@ -5,4 +5,21 @@
     <string name="label_fragment_map">코로나 맵</string>
     <string name="detail">자세히</string>
     <string name="dashboard">대시보드</string>
+    <string name="current_status">국내현황</string>
+    <string name="total_case">국내 확진자수 :</string>
+    <string name="total_recovered">국내 완치자수 :</string>
+    <string name="total_death">국내 사망자수 :</string>
+    <string name="total_quarantine">국내 격리자수 :</string>
+
+    <string name="recovered_percentage">국내 완치율 :</string>
+    <string name="death_percentage">국내 사망률 :</string>
+    <string name="checking">국내 검사중 :</string>
+
+    <string name="case_count">국내 검사 결과 양성 :</string>
+    <string name="not_case_count">국내 검사 결과 음성 :</string>
+
+    <string name="total_check">총 검사 완료 수 :</string>
+    <string name="today_recovered">오늘 하루 완치자수 :</string>
+    <string name="today_death">오늘 하루 사망자수 :</string>
+
 </resources>
