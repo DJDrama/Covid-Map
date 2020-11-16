@@ -30,7 +30,7 @@ interface CoronaApi {
 
     companion object {
         private const val BASE_URL = "https://api.corona-19.kr/"
-        private const val SERVICE_KEY = ""
+        private const val SERVICE_KEY = "e30bb0232c3f1b82fe9628e8a3100fcf3"
         fun create(): CoronaApi = create(BASE_URL.toHttpUrlOrNull()!!)
         fun create(httpUrl: HttpUrl): CoronaApi {
             val logger = HttpLoggingInterceptor()

@@ -9,7 +9,9 @@ data class LocationItem(
     val id: String,
     val name: String,
     val latLng: LatLng?,
-    val address: String
+    val address: String,
+    val phone: String?=null,
+    val image: String?=null
 ): Parcelable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

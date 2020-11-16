@@ -398,13 +398,14 @@ class MapFragment : Fragment(R.layout.fragment_map), OnMapReadyCallback,
 
             var item = it.tag
             if (item is DangerousPlaces) {
-                item = item
                 mapViewModel.setCurrentLocation(
                     LocationItem(
                         item.documentId,
                         item.name,
-                        latLng = LatLng(item.latitude.toDouble(), item.longitude.toDouble()),
-                        item.address
+                        LatLng(item.latitude.toDouble(), item.longitude.toDouble()),
+                        item.address,
+                        item.phone,
+                        item.image
                     )
                 )
             } else {

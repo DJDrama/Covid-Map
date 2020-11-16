@@ -1,5 +1,6 @@
 package com.coronamap.www.ui.fragments
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
@@ -9,8 +10,6 @@ import com.google.android.libraries.maps.GoogleMap
 
 class MapViewModel : ViewModel() {
     private val _locationItem: MutableLiveData<LocationItem> = MutableLiveData()
-    val locationItem: LiveData<LocationItem>
-        get() = _locationItem
 
     private val _infoWindowClicked = MutableLiveData<Boolean>()
     val infoWindowClicked: LiveData<Boolean>
@@ -64,7 +63,7 @@ class MapViewModel : ViewModel() {
         _searchMyLocation.value = value
     }
 
-    fun getLocationItem() = locationItem.value
+    fun getLocationItem() = _locationItem.value
 
     fun setInfoWindowClicked(bool: Boolean) {
         _infoWindowClicked.value = bool
